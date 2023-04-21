@@ -8,7 +8,6 @@ class PhoDS (Dataset):
 
 	def __init__(
 			self,
-			tranforms = None,
 			dir='data/PHO_117/Day_1_Oct_12/Camera 1',
 			meta='data/PHO_117/Day_1_Oct_12/gt_day_1.json'
 		) -> None:
@@ -37,11 +36,8 @@ class PhoDS (Dataset):
 	def __getitem__(self, index):
 		file, label = self.meta[index]
 
-		label = label.item()
+		label = float(label.item())
 
 		img = io.read_image(f'{self.dir}/{file.item()}.jpg')
 
-		if self.transfroms is None:
-			return img, label
-		else:
-			return self.transfroms(img), label
+		return img, label
