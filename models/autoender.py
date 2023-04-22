@@ -20,51 +20,47 @@ class Encoder(nn.Module):
 
 	def __init__(
 			self,
-			convs = None,
+			convs = [30, 50, 100, 175, 250, 325, 375, 425, 500],
 			activation=nn.Sigmoid,
-			initialization=nn.init.xavier_uniform_
+			**kargs
 		) -> None:
 
 		super().__init__()
 
-		if convs is None:
-			convs = [30, 50, 100, 175, 250, 325, 375, 425, 500]
-
-		# assert len(convs) == 10
-
 		self.weights = nn.Sequential()
 
-		conv =nn.Conv2d(3,convs[0], 3, padding=1)
-
-		# initializes the conv layer
-		initialization(conv.weight)
-
+		# inital block
 		self.weights.append(
 			nn.Sequential(
-				conv,
+				Conv(3,convs[0],**kargs),
 				activation(),
-				ResidualBlock(convs[0],blocks=4),
+				ResidualBlock(
+					convs[0],
+					blocks=2,
+					activation=activation,
+					**kargs
+				),
 				nn.MaxPool2d(2),
 				activation()
 			)
 		)
 
+		# remiaining blocks
 		for in_s, out_s in zip(convs[:-1],convs[1:]):
-
-			# allocates conv layer
-			conv = nn.Conv2d(in_s, out_s, 3, padding=1)
-
-			# initializes the conv layer
-			initialization(conv.weight)
-
-			block = nn.Sequential(
-				conv,
-				nn.MaxPool2d(2),
-				activation(),
-				nn.BatchNorm2d(out_s)
+			self.weights.append(
+				nn.Sequential(
+					Conv(in_s, out_s,**kargs),
+					nn.MaxPool2d(2),
+					activation(),
+					ResidualBlock(
+						out_s,
+						blocks=2,
+						activation=activation,
+						**kargs
+					),
+					nn.BatchNorm2d(out_s)
+				)
 			)
-
-			self.weights.append(block)
 
 	def forward(self,data):
 		return self.weights(data)
@@ -73,51 +69,47 @@ class Decoder(nn.Module):
 
 	def __init__(
 			self,
-			convs = None,
+			convs = [30, 50, 100, 175, 250, 325, 375, 425, 500],
 			activation=nn.Sigmoid,
-			initialization=nn.init.xavier_uniform_
+			**kargs
 		) -> None:
 
 		super().__init__()
 
-		if convs is None:
-			convs = [30, 50, 100, 175, 250, 325, 375, 425, 500][::-1]
-
-		# assert len(convs) == 9
-
 		self.weights = nn.Sequential()
 
+		convs = convs[::-1]
+
+		# middle blocks
 		for in_s, out_s in zip(convs[:-1],convs[1:]):
 
-			# allocates conv layer
-			conv_up = nn.ConvTranspose2d(in_s, in_s, 3, padding=1, stride=2, output_padding=1)
-			conv    = nn.Conv2d(in_s, out_s, 3, padding=1)
-
-			# initializes the conv layer
-			initialization(conv_up.weight)
-			initialization(conv.weight)
-
-			block = nn.Sequential(
-				conv_up,
-				conv,
-				activation(),
-				nn.BatchNorm2d(out_s)
+			self.weights.append(
+				nn.Sequential(
+					ConvTrans(  in_s, **kargs),
+					Conv(in_s, out_s, **kargs),
+					activation(),
+					ResidualBlock(
+						out_s,
+						blocks=2,
+						activation=activation,
+						**kargs
+					),
+					nn.BatchNorm2d(out_s)
+				)
 			)
 
-			self.weights.append(block)
-
-		conv_up = nn.ConvTranspose2d(convs[-1], convs[-1], 3, padding=1, stride=2, output_padding=1)
-		conv    = nn.Conv2d(convs[-1], 3, 3, padding=1)
-
-		# initializes the conv layer
-		initialization(conv.weight)
-
+		# end block
 		self.weights.append(
 			nn.Sequential(
-				conv_up,
-				ResidualBlock(convs[-1],blocks=4),
+				ConvTrans(convs[-1],**kargs),
+				ResidualBlock(
+					convs[-1],
+					blocks=2,
+					activation=activation,
+					**kargs
+				),
 				activation(),
-				conv,
+				Conv(convs[-1], 3,**kargs),
 				activation()
 			)
 		)
@@ -125,43 +117,94 @@ class Decoder(nn.Module):
 	def forward(self,data):
 		return self.weights(data)
 
+class Conv(nn.Module):
+
+	def __init__(
+			self,
+			in_channel,
+			out_channel,
+			initialization=nn.init.xavier_uniform_,
+			depthwise=False,
+			**_
+		) -> None:
+
+		super().__init__()
+
+		if depthwise is False:
+			self.conv = nn.Conv2d(in_channel, out_channel, 3, padding= 1)
+
+			initialization(self.conv.weight)
+		else:
+			depthwise = nn.Conv2d(in_channel,  in_channel, 3, padding=1, groups=in_channel)
+			pointwise = nn.Conv2d(in_channel, out_channel, 1)
+
+			initialization(depthwise.weight)
+			initialization(pointwise.weight)
+
+			self.conv = nn.Sequential(
+				depthwise,
+				pointwise
+			)
+
+	def forward(self, data):
+		return self.conv(data)
+
+class ConvTrans(nn.Module):
+
+	def __init__(
+			self,
+			in_channel,
+			initialization=nn.init.xavier_uniform_,
+			trans_depthwise=False,
+			**_
+		) -> None:
+
+		super().__init__()
+
+		if trans_depthwise is False:
+			self.conv_trans = nn.ConvTranspose2d(in_channel,in_channel, 3, padding=1, stride=2, output_padding=1)
+		else:
+			self.conv_trans = nn.ConvTranspose2d(in_channel,in_channel, 3, padding=1, stride=2, output_padding=1, groups=in_channel)
+
+		initialization(self.conv_trans.weight)
+
+	def forward(self, data):
+		return self.conv_trans(data)
+
 class ResidualBlock(nn.Module):
 
 	def __init__(
 			self,
 			size,
-			blocks=3,
+			blocks=4,
 			activation=nn.Sigmoid,
-			initialization=nn.init.xavier_uniform_
+			**kargs
 		) -> None:
 
 		super().__init__()
 
 		self.weights = nn.Sequential()
 
-		for block in range(blocks):
-			# allocates conv layer
-			conv = nn.Conv2d(size, size, 3, padding=1)
+		for _ in range(blocks):
 
-			# initializes the conv layer
-			initialization(conv.weight)
-
-			block = nn.Sequential(
-				conv,
-				activation(),
+			self.weights.append(
+				nn.Sequential(
+					Conv(size, size, **kargs),
+					activation(),
+				)
 			)
-
-			self.weights.append(block)
 
 	def forward(self, data):
 		return data + self.weights(data)
 
 class ResidualConnection(nn.Module):
 
-	def __init__(self, model) -> None:
+	def __init__(self, *blocks) -> None:
 		super().__init__()
 
-		self.model = model
+		self.model = nn.Sequential(
+			*blocks
+		)
 
 	def forward(self, data):
 		return data + self.model(data)
