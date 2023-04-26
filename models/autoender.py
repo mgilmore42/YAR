@@ -36,7 +36,7 @@ class Encoder(nn.Module):
 				activation(),
 				ResidualBlock(
 					convs[0],
-					blocks=2,
+					blocks=6,
 					activation=activation,
 					**kargs
 				),
@@ -104,7 +104,7 @@ class Decoder(nn.Module):
 				ConvTrans(convs[-1],**kargs),
 				ResidualBlock(
 					convs[-1],
-					blocks=2,
+					blocks=6,
 					activation=activation,
 					**kargs
 				),

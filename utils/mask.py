@@ -1,5 +1,4 @@
 import torch
-import matplotlib.pyplot as plt
 
 def mask(size, radius):
 
