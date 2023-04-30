@@ -1,3 +1,13 @@
-data/
+# folders to ignore
+/data/
+/runs/
+/.cache/
+
+# ignore python bytecode cache
 __pycache__
-test.py
+
+# ignore jupyter notebooks
+*.ipynb
+
+# ignore saved pytorch outputs
+*.pt
