@@ -58,7 +58,7 @@ class Encoder(nn.Module):
 						activation=activation,
 						**kargs
 					),
-					nn.BatchNorm2d(out_s)
+					nn.BatchNorm2d(out_s, dtype=kargs.get('dtype'))
 				)
 			)
 
@@ -94,7 +94,7 @@ class Decoder(nn.Module):
 						activation=activation,
 						**kargs
 					),
-					nn.BatchNorm2d(out_s)
+					nn.BatchNorm2d(out_s, dtype=kargs.get('dtype'))
 				)
 			)
 
@@ -125,18 +125,19 @@ class Conv(nn.Module):
 			out_channel,
 			initialization=nn.init.xavier_uniform_,
 			depthwise=False,
+			dtype=torch.float,
 			**_
 		) -> None:
 
 		super().__init__()
 
 		if depthwise is False:
-			self.conv = nn.Conv2d(in_channel, out_channel, 3, padding= 1)
+			self.conv = nn.Conv2d(in_channel, out_channel, 3, padding= 1, dtype=dtype)
 
 			initialization(self.conv.weight)
 		else:
-			depthwise = nn.Conv2d(in_channel,  in_channel, 3, padding=1, groups=in_channel)
-			pointwise = nn.Conv2d(in_channel, out_channel, 1)
+			depthwise = nn.Conv2d(in_channel,  in_channel, 3, padding=1, groups=in_channel,dtype=dtype)
+			pointwise = nn.Conv2d(in_channel, out_channel, 1, dtype=dtype)
 
 			initialization(depthwise.weight)
 			initialization(pointwise.weight)
@@ -156,15 +157,16 @@ class ConvTrans(nn.Module):
 			in_channel,
 			initialization=nn.init.xavier_uniform_,
 			trans_depthwise=False,
+			dtype=torch.float,
 			**_
 		) -> None:
 
 		super().__init__()
 
 		if trans_depthwise is False:
-			self.conv_trans = nn.ConvTranspose2d(in_channel,in_channel, 3, padding=1, stride=2, output_padding=1)
+			self.conv_trans = nn.ConvTranspose2d(in_channel,in_channel, 3, padding=1, stride=2, output_padding=1,dtype=dtype)
 		else:
-			self.conv_trans = nn.ConvTranspose2d(in_channel,in_channel, 3, padding=1, stride=2, output_padding=1, groups=in_channel)
+			self.conv_trans = nn.ConvTranspose2d(in_channel,in_channel, 3, padding=1, stride=2, output_padding=1, groups=in_channel,dtype=dtype)
 
 		initialization(self.conv_trans.weight)
 

@@ -25,6 +25,7 @@ dataset_origin = torch.utils.data.ConcatDataset([AEDataset(day=1), AEDataset(day
 dataset = dataset_origin
 val_dataset_roi = AEDataset(day=2)
 dataset, val_dataset, *_ = torch.utils.data.random_split(dataset_origin,[0.5,0.5])
+dataset, *_ = torch.utils.data.random_split(dataset_origin,[0.5,0.5])
 
 data_transforms=nn.Sequential(
 	Normalize(),
@@ -113,7 +114,7 @@ for epoch in range(60):
 
 		img = torch.stack((data,masked_preds,predictions),dim=2).reshape(3,512*7,-1)
 
-		torchvision.io.write_png(img,filename=f'.cache/res100/{epoch}.png',compression_level=9)
+		torchvision.io.write_png(img,filename=f'.cache/res50/{epoch}.png',compression_level=9)
 
 		logger.add_images('ROIs', torch.stack((data,masked_preds,predictions)),global_step=epoch)
 		logger.flush()
@@ -137,7 +138,7 @@ for epoch in range(60):
 
 		if best_loss > running_loss:
 			best_loss = running_loss
-			torch.save(model.state_dict(), '.cache/check_points/model 100.pt')
+			torch.save(model.state_dict(), '.cache/check_points/model 50.pt')
 
 	if (epoch % 10) == 5:
 		scheduler.step()
